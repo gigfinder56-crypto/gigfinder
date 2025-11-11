@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
+import 'package:flutter/foundation.dart'; // Added for kIsWeb
 import 'package:mavenlink/models/user.dart';
 import 'package:mavenlink/services/user_service.dart';
 import 'package:mavenlink/services/application_service.dart';
 import 'package:mavenlink/services/experience_service.dart';
 import 'package:mavenlink/screens/profile_setup_screen.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
-
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -171,15 +170,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withOpacity(0.2),
-                                  blurRadius: 10,
+                    blurRadius: 10,
                     offset: const Offset(0, 4),
                   ),
                 ],
               ),
-child: ClipOval(
-  child: _buildProfileImage(),
-),
-
+              child: ClipOval(
+                child: _getProfileImage(),
+              ),
             ),
             
             const SizedBox(height: 16),
@@ -229,6 +227,35 @@ child: ClipOval(
         ),
       ),
     );
+  }
+
+  Widget _getProfileImage() {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final path = _currentUser?.profilePhotoPath;
+
+    if (path == null || path.isEmpty) {
+      return _buildAvatarFallback();
+    }
+
+    if (path.startsWith('http')) {
+      // If it's a URL (e.g., from cloud storage), use Image.network (works on all platforms)
+      return Image.network(
+        path,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => _buildAvatarFallback(),
+      );
+    } else if (!kIsWeb) {
+      // For local file paths, use Image.file only on non-web platforms
+      return Image.file(
+        File(path),
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => _buildAvatarFallback(),
+      );
+    } else {
+      // On web, local files aren't accessible; fall back to avatar
+      return _buildAvatarFallback();
+    }
   }
 
   Widget _buildAvatarFallback() {
@@ -663,34 +690,6 @@ child: ClipOval(
           ],
         ),
       ),
-    );
-  }
-}
-Widget _buildProfileImage() {
-  final photoPath = _currentUser?.profilePhotoPath;
-
-  if (photoPath == null || photoPath.isEmpty) {
-    return _buildAvatarFallback();
-  }
-
-  if (kIsWeb) {
-    // On web, Image.file doesn't work — use Image.network if you have an online URL.
-    if (photoPath.startsWith('http')) {
-      return Image.network(
-        photoPath,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => _buildAvatarFallback(),
-      );
-    } else {
-      // You can also use Image.memory(Uint8List) if you're storing bytes or base64
-      return _buildAvatarFallback();
-    }
-  } else {
-    // On mobile or desktop
-    return Image.file(
-      File(photoPath),
-      fit: BoxFit.cover,
-      errorBuilder: (context, error, stackTrace) => _buildAvatarFallback(),
     );
   }
 }
